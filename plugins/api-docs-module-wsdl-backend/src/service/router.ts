@@ -8,9 +8,32 @@ import SaxonJS from 'saxon-js';
 import styleSheet from '../stylesheet.sef.json';
 import { AuthService, DiscoveryService, LoggerService } from '@backstage/backend-plugin-api';
 
-const downloadExternalSchema = async (uri: string, logger: LoggerService) => {
+const isAllowedHost = (uri: string, allowedHosts: string[]) => {
   try {
-    const value = await fetch(uri);
+    const { protocol, host, hostname } = new URL(uri);
+    return (
+      ['http:', 'https:'].includes(protocol) &&
+      (allowedHosts.includes(host) || allowedHosts.includes(hostname))
+    );
+  } catch {
+    return false;
+  }
+};
+
+const downloadExternalSchema = async (
+  uri: string,
+  logger: LoggerService,
+  allowedHosts: string[],
+) => {
+  if (!isAllowedHost(uri, allowedHosts)) {
+    logger.warn(
+      `Skipped downloading schema ${uri}, its host is not in apiDocsModuleWsdl.allowedHosts`,
+    );
+    return `<?xml version="1.0" encoding="UTF-8"?><Error>Could not download external schema!</Error>`;
+  }
+  try {
+    // A redirect could lead from an allowed host to one that is not.
+    const value = await fetch(uri, { redirect: 'error' });
     return await value.text();
   } catch {
     logger.warn(`Error downloading schema for ${uri}`);
@@ -35,6 +58,7 @@ const removePort = (uri: string) => {
 const recursiveDocumentPoolDownload = async (
   saxonDocument: any,
   logger: LoggerService,
+  allowedHosts: string[],
   documentPool: { [name: string]: string } = {},
 ) => {
   const schemaURIs: Array<{ value: string }> =
@@ -48,7 +72,11 @@ const recursiveDocumentPoolDownload = async (
     const externalSchemas = await Promise.all(
       schemaURIs.map(async schemaURI =>
         SaxonJS.getResource({
-          text: await downloadExternalSchema(schemaURI.value, logger),
+          text: await downloadExternalSchema(
+            schemaURI.value,
+            logger,
+            allowedHosts,
+          ),
           type: 'xml',
         }),
       ),
@@ -60,7 +88,12 @@ const recursiveDocumentPoolDownload = async (
 
     await Promise.all(
       externalSchemas.map(async (document: any) =>
-        recursiveDocumentPoolDownload(document, logger, documentPool),
+        recursiveDocumentPoolDownload(
+          document,
+          logger,
+          allowedHosts,
+          documentPool,
+        ),
       ),
     );
   }
@@ -68,10 +101,14 @@ const recursiveDocumentPoolDownload = async (
   return documentPool;
 };
 
-const wsdlToHtml = async (xml: string, logger: LoggerService) => {
+const wsdlToHtml = async (
+  xml: string,
+  logger: LoggerService,
+  allowedHosts: string[],
+) => {
   const saxonDocument = await SaxonJS.getResource({ text: xml, type: 'xml' });
   const documentPool: { [name: string]: string } =
-    await recursiveDocumentPoolDownload(saxonDocument, logger);
+    await recursiveDocumentPoolDownload(saxonDocument, logger, allowedHosts);
 
   const schemaURIs = Object.keys(documentPool);
   if (schemaURIs.length > 0) {
@@ -102,13 +139,18 @@ export interface RouterOptions {
   logger: LoggerService;
   discovery: DiscoveryService;
   auth: AuthService;
+  /**
+   * Hosts external schemas may be downloaded from, matched against the host
+   * with and without port. No host is allowed by default.
+   */
+  allowedHosts?: string[];
 }
 
 /** @public */
 export async function createRouter(
   options: RouterOptions,
 ): Promise<express.Router> {
-  const { logger, discovery, auth } = options;
+  const { logger, discovery, auth, allowedHosts = [] } = options;
 
   const catalogClient = new CatalogClient({ discoveryApi: discovery });
 
@@ -129,7 +171,11 @@ export async function createRouter(
     const apiEntity = (await catalogClient.getEntityByRef(entityRef, {
       token,
     })) as ApiEntity;
-    const result = await wsdlToHtml(apiEntity.spec.definition, entityLogger);
+    const result = await wsdlToHtml(
+      apiEntity.spec.definition,
+      entityLogger,
+      allowedHosts,
+    );
     res.send(result);
   });
 

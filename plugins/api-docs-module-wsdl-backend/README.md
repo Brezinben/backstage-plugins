@@ -49,6 +49,18 @@ backend.add(import('@dweber019/backstage-plugin-api-docs-module-wsdl-backend'));
 backend.start();
 ```
 
+## Configuration
+
+A WSDL can import external schemas. The backend downloads them only from hosts you allow:
+
+```yaml
+apiDocsModuleWsdl:
+  allowedHosts:
+    - schemas.example.com
+```
+
+No host is allowed by default, and redirects are not followed. A schema from another host is replaced by an error document in the output.
+
 ## Development
 
 This plugin is based on the work of the [wsdl-viewer](https://github.com/tomi-vanek/wsdl-viewer) and uses

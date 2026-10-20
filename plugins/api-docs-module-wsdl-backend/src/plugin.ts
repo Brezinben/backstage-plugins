@@ -17,13 +17,17 @@ export const apiDocsModuleWsdlPlugin = createBackendPlugin({
         httpRouter: coreServices.httpRouter,
         discovery: coreServices.discovery,
         auth: coreServices.auth,
+        config: coreServices.rootConfig,
       },
-      async init({ logger, httpRouter, discovery, auth }) {
+      async init({ logger, httpRouter, discovery, auth, config }) {
         httpRouter.use(
           await createRouter({
             logger,
             discovery,
             auth,
+            allowedHosts:
+              config.getOptionalStringArray('apiDocsModuleWsdl.allowedHosts') ??
+              [],
           }),
         );
         httpRouter.addAuthPolicy({
