@@ -51,4 +51,20 @@ describe('WsdlDefinition theme', () => {
     await screen.findByText('Calculator');
     expect(container.querySelector('.theme-dark')).toBeNull();
   });
+
+  it('darkens the boxes of the converted document in a dark theme', async () => {
+    const { container } = renderInTheme('dark');
+
+    await screen.findByText('Calculator');
+    expect(container.querySelector('style')?.textContent).toContain(
+      '.theme-dark .box',
+    );
+  });
+
+  it('adds no style in a light theme', async () => {
+    const { container } = renderInTheme('light');
+
+    await screen.findByText('Calculator');
+    expect(container.querySelector('style')).toBeNull();
+  });
 });
