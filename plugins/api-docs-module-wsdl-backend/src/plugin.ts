@@ -25,9 +25,9 @@ export const apiDocsModuleWsdlPlugin = createBackendPlugin({
             logger,
             discovery,
             auth,
-            allowedHosts:
-              config.getOptionalStringArray('apiDocsModuleWsdl.allowedHosts') ??
-              [],
+            allowedHosts: config.getOptionalStringArray(
+              'apiDocsModuleWsdl.allowedHosts',
+            ),
           }),
         );
         httpRouter.addAuthPolicy({
