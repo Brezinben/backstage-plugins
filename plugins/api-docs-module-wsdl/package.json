@@ -44,6 +44,7 @@
     "@backstage/errors": "^1.2.7",
     "@backstage/plugin-catalog-react": "^1.21.4",
     "@material-ui/lab": "4.0.0-alpha.61",
+    "dompurify": "^3.3.1",
     "react-use": "^17.2.4"
   },
   "peerDependencies": {

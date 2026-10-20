@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import useAsync from 'react-use/lib/useAsync';
 import { Alert } from '@material-ui/lab';
 import { Progress } from '@backstage/core-components';
@@ -28,7 +29,7 @@ export const WsdlDefinition = ({ definition, entity }: WsdlDefinitionProps) => {
   return (
     <div
       className={`theme-${appThemeApi.getActiveThemeId()}`}
-      dangerouslySetInnerHTML={{ __html: result.value || '' }}
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.value || '') }}
     />
   );
 };
