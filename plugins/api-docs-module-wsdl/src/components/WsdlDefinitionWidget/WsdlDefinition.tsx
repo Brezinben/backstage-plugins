@@ -14,6 +14,21 @@ export type WsdlDefinitionProps = {
   entity: ApiEntityV1alpha1;
 };
 
+// The converted document only darkens its text and keeps light boxes, with inline blue and
+// green colors that are unreadable on a dark page. The inline colors need !important.
+const darkStyles = `
+.theme-dark .box {
+  background-color: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.87);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+.theme-dark .box [style*="color:blue"] { color: #9CC9FF !important; }
+.theme-dark .box [style*="color:green"] { color: #8FD694 !important; }
+.theme-dark .xml-element, .theme-dark .xml-proc { color: #FF8A80; }
+.theme-dark .xml-att, .theme-dark .xml-att-val { color: #9CC9FF; }
+.theme-dark .xml-comment, .theme-dark .xml-text { color: #8FD694; }
+`;
+
 export const WsdlDefinition = ({ definition, entity }: WsdlDefinitionProps) => {
   const apiDocsModuleWsdlDocApi = useApi(apiDocsModuleWsdlApiRef);
   const theme = useTheme();
@@ -30,9 +45,12 @@ export const WsdlDefinition = ({ definition, entity }: WsdlDefinitionProps) => {
   }
 
   return (
-    <div
-      className={`theme-${theme.palette.type}`}
-      dangerouslySetInnerHTML={{ __html: result.value || '' }}
-    />
+    <>
+      {theme.palette.type === 'dark' && <style>{darkStyles}</style>}
+      <div
+        className={`theme-${theme.palette.type}`}
+        dangerouslySetInnerHTML={{ __html: result.value || '' }}
+      />
+    </>
   );
 };
