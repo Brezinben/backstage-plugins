@@ -6,7 +6,12 @@ import { ApiEntity } from '@backstage/catalog-model';
 // @ts-ignore
 import SaxonJS from 'saxon-js';
 import styleSheet from '../stylesheet.sef.json';
-import { AuthService, DiscoveryService, LoggerService } from '@backstage/backend-plugin-api';
+import {
+  AuthService,
+  DiscoveryService,
+  HttpAuthService,
+  LoggerService,
+} from '@backstage/backend-plugin-api';
 
 const downloadExternalSchema = async (uri: string, logger: LoggerService) => {
   try {
@@ -102,13 +107,14 @@ export interface RouterOptions {
   logger: LoggerService;
   discovery: DiscoveryService;
   auth: AuthService;
+  httpAuth: HttpAuthService;
 }
 
 /** @public */
 export async function createRouter(
   options: RouterOptions,
 ): Promise<express.Router> {
-  const { logger, discovery, auth } = options;
+  const { logger, discovery, auth, httpAuth } = options;
 
   const catalogClient = new CatalogClient({ discoveryApi: discovery });
 
@@ -121,7 +127,7 @@ export async function createRouter(
 
   router.get('/v1/convert', async (req, res) => {
     const { token } = await auth.getPluginRequestToken({
-      onBehalfOf: await auth.getOwnServiceCredentials(),
+      onBehalfOf: await httpAuth.credentials(req),
       targetPluginId: 'catalog',
     });
     const entityRef = req.query.entityRef as string;
