@@ -32,6 +32,15 @@ describe('WsdlDefinition', () => {
     expect(screen.getByText('Add')).toBeInTheDocument();
   });
 
+  it('keeps the stylesheet of the converted document', async () => {
+    const { container } = renderWithHtml(
+      '<!DOCTYPE html><html><head><title>t</title><style>h1 { color: red; }</style></head><body><h1>Calculator</h1></body></html>',
+    );
+
+    await screen.findByText('Calculator');
+    expect(container.querySelector('style')?.textContent).toContain('color');
+  });
+
   it('removes scripts and event handlers from the converted markup', async () => {
     const { container } = renderWithHtml(
       '<h1>Calculator</h1><script>window.pwned = 1</script>' +

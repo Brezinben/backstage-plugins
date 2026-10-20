@@ -4,7 +4,10 @@ import { Alert } from '@material-ui/lab';
 import { Progress } from '@backstage/core-components';
 import { appThemeApiRef, useApi } from '@backstage/core-plugin-api';
 import { apiDocsModuleWsdlApiRef } from '../../api';
-import { ApiEntityV1alpha1, stringifyEntityRef } from '@backstage/catalog-model';
+import {
+  ApiEntityV1alpha1,
+  stringifyEntityRef,
+} from '@backstage/catalog-model';
 
 export type WsdlDefinitionProps = {
   definition: string;
@@ -29,7 +32,9 @@ export const WsdlDefinition = ({ definition, entity }: WsdlDefinitionProps) => {
   return (
     <div
       className={`theme-${appThemeApi.getActiveThemeId()}`}
-      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(result.value || '') }}
+      dangerouslySetInnerHTML={{
+        __html: DOMPurify.sanitize(result.value || '', { FORCE_BODY: true }),
+      }}
     />
   );
 };
