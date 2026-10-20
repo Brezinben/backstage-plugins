@@ -24,13 +24,13 @@ const absolutizeLocations = (xml: string) => {
 
   return xml
     .replace(
-      /\bschemaLocation=(["'])(.*?)\1/g,
+      /\bschemaLocation\s*=\s*(["'])(.*?)\1/g,
       (match, quote, value) =>
         absolutize('schemaLocation', quote, value) ?? match,
     )
     .replace(/<[\w.-]*:?import\b[^>]*>/g, tag =>
       tag.replace(
-        /\blocation=(["'])(.*?)\1/,
+        /\blocation\s*=\s*(["'])(.*?)\1/,
         (match, quote, value) => absolutize('location', quote, value) ?? match,
       ),
     );
