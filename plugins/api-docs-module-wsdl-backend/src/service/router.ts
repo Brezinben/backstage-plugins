@@ -8,13 +8,45 @@ import SaxonJS from 'saxon-js';
 import styleSheet from '../stylesheet.sef.json';
 import { AuthService, DiscoveryService, LoggerService } from '@backstage/backend-plugin-api';
 
+// Needs to be set to anything, relative locations are resolved against it.
+const SOURCE_BASE_URI = 'https://backstage.io';
+
+const MISSING_SCHEMA = `<?xml version="1.0" encoding="UTF-8"?><Error>Could not download external schema!</Error>`;
+
+// The stylesheet resolves a relative location against its own location, so the document
+// pool never matches it. Making the location absolute, against a known base, lets the
+// pool answer with MISSING_SCHEMA instead of the transformation reading a local file.
+const absolutizeLocations = (xml: string) => {
+  const absolutize = (attribute: string, quote: string, value: string) =>
+    URL.canParse(value)
+      ? undefined
+      : `${attribute}=${quote}${new URL(value, SOURCE_BASE_URI)}${quote}`;
+
+  return xml
+    .replace(
+      /\bschemaLocation=(["'])(.*?)\1/g,
+      (match, quote, value) =>
+        absolutize('schemaLocation', quote, value) ?? match,
+    )
+    .replace(/<[\w.-]*:?import\b[^>]*>/g, tag =>
+      tag.replace(
+        /\blocation=(["'])(.*?)\1/,
+        (match, quote, value) => absolutize('location', quote, value) ?? match,
+      ),
+    );
+};
+
 const downloadExternalSchema = async (uri: string, logger: LoggerService) => {
+  if (uri.startsWith(`${SOURCE_BASE_URI}/`)) {
+    logger.warn(`Skipped schema ${uri}, its location is not an absolute URL`);
+    return MISSING_SCHEMA;
+  }
   try {
     const value = await fetch(uri);
     return await value.text();
   } catch {
     logger.warn(`Error downloading schema for ${uri}`);
-    return `<?xml version="1.0" encoding="UTF-8"?><Error>Could not download external schema!</Error>`;
+    return MISSING_SCHEMA;
   }
 };
 
@@ -48,7 +80,9 @@ const recursiveDocumentPoolDownload = async (
     const externalSchemas = await Promise.all(
       schemaURIs.map(async schemaURI =>
         SaxonJS.getResource({
-          text: await downloadExternalSchema(schemaURI.value, logger),
+          text: absolutizeLocations(
+            await downloadExternalSchema(schemaURI.value, logger),
+          ),
           type: 'xml',
         }),
       ),
@@ -68,7 +102,8 @@ const recursiveDocumentPoolDownload = async (
   return documentPool;
 };
 
-const wsdlToHtml = async (xml: string, logger: LoggerService) => {
+const wsdlToHtml = async (rawXml: string, logger: LoggerService) => {
+  const xml = absolutizeLocations(rawXml);
   const saxonDocument = await SaxonJS.getResource({ text: xml, type: 'xml' });
   const documentPool: { [name: string]: string } =
     await recursiveDocumentPoolDownload(saxonDocument, logger);
@@ -89,7 +124,7 @@ const wsdlToHtml = async (xml: string, logger: LoggerService) => {
     {
       stylesheetText: JSON.stringify(styleSheet),
       sourceText: xml,
-      sourceBaseURI: 'https://backstage.io', // Needs to be set to anything
+      sourceBaseURI: SOURCE_BASE_URI,
       documentPool: documentPool,
       destination: 'serialized',
       logLevel: 10,
